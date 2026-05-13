@@ -305,12 +305,21 @@ export const useGameEngine = () => {
     }));
   };
 
+  // 現在の毎秒の収入を計算
+  const currentIncome = rooms.reduce((acc, room) => {
+    if (room.isOccupied && !room.isDelinquent) {
+      return acc + room.rent;
+    }
+    return acc;
+  }, 0);
+
   return {
     funds,
     debt,
     floors,
     rooms,
     events,
+    currentIncome,
     buildFloor,
     upgradeRoom,
     selectTenant,

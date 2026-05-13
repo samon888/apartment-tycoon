@@ -32,15 +32,25 @@ const MiniGameModal = ({ room, onComplete, onClose }) => {
   const [btnPos, setBtnPos] = useState({ top: '40%', left: '40%' });
 
   useEffect(() => {
-    if (timeLeft <= 0) {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft === 0) {
       // 終了時の処理：本来の家賃をベースに、クリック数×5%（最大90%）を回収
       const recoveryRate = Math.min(0.9, clicks * 0.05);
       const recoveredAmount = Math.floor(room.delinquentAmount * recoveryRate);
       onComplete(room.id, recoveredAmount);
-      return;
     }
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
-    return () => clearInterval(timer);
   }, [timeLeft, clicks, onComplete, room]);
 
   const moveButton = () => {
@@ -252,7 +262,7 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
 
 function App() {
   const { 
-    funds, debt, floors, rooms, events, 
+    funds, debt, floors, rooms, events, currentIncome,
     buildFloor, upgradeRoom, selectTenant, repairRoom, changeRent, repayDebt, evictTenant, resolveDelinquency 
   } = useGameEngine();
 
@@ -282,7 +292,12 @@ function App() {
       <div className="dashboard">
         <div className="stat-box">
           <span className="stat-label">現在の資金</span>
-          <span className="stat-value funds">{formatMoney(funds)}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span className="stat-value funds">{formatMoney(funds)}</span>
+            <span style={{ fontSize: '1rem', color: 'var(--success-color)', fontWeight: 'bold' }}>
+              (+{formatMoney(currentIncome)}/秒)
+            </span>
+          </div>
         </div>
         
         <div className="stat-box">
