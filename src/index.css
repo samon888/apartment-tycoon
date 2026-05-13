@@ -70,7 +70,7 @@ button.warning:hover { background-color: #d97706; }
 button:disabled { background-color: #475569; cursor: not-allowed; transform: none; }
 
 /* Main Layout */
-.main-layout { display: grid; grid-template-columns: 3fr 1fr; gap: 24px; }
+.main-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 24px; }
 
 /* Floor Layout */
 .apartment-container { display: flex; flex-direction: column-reverse; gap: 32px; }

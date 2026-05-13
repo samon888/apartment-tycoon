@@ -68,7 +68,6 @@ const MiniGameModal = ({ room, onComplete, onClose }) => {
           <button 
             className="fleeing-btn" 
             style={{ top: btnPos.top, left: btnPos.left }}
-            onMouseEnter={moveButton} // 逃げる動作を強化
             onClick={handleBtnClick}
           >
             家賃を払え！
