@@ -1,9 +1,89 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameEngine } from './hooks/useGameEngine';
 import { ROOM_GRADES, FLOOR_COST_BASE } from './constants';
 import './index.css';
 
-function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRent, evictTenant }) {
+// 万単位フォーマット
+const formatMoney = (amount) => {
+  if (amount <= 10000) return amount.toLocaleString() + '円';
+  const man = Math.floor(amount / 10000);
+  const remainder = amount % 10000;
+  if (remainder === 0) return `${man.toLocaleString()}万円`;
+  return `${man.toLocaleString()}万${remainder.toLocaleString()}円`;
+};
+
+// 棒グラフコンポーネント
+const StatBar = ({ label, value, max, colorClass, displayValue }) => (
+  <div style={{ marginBottom: '6px' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '2px', color: 'var(--text-secondary)' }}>
+      <span>{label}</span>
+      <span>{displayValue ?? value}</span>
+    </div>
+    <div className="progress-bar" style={{ height: '4px' }}>
+      <div className={`progress-fill ${colorClass}`} style={{ width: `${Math.min(100, (value / max) * 100)}%` }}></div>
+    </div>
+  </div>
+);
+
+// ミニゲームモーダル
+const MiniGameModal = ({ room, onComplete, onClose }) => {
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [clicks, setClicks] = useState(0);
+  const [btnPos, setBtnPos] = useState({ top: '40%', left: '40%' });
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      // 終了時の処理：本来の家賃をベースに、クリック数×5%（最大90%）を回収
+      const recoveryRate = Math.min(0.9, clicks * 0.05);
+      const recoveredAmount = Math.floor(room.delinquentAmount * recoveryRate);
+      onComplete(room.id, recoveredAmount);
+      return;
+    }
+    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, clicks, onComplete, room]);
+
+  const moveButton = () => {
+    const top = Math.floor(Math.random() * 80) + 10;
+    const left = Math.floor(Math.random() * 80) + 10;
+    setBtnPos({ top: `${top}%`, left: `${left}%` });
+  };
+
+  const handleBtnClick = () => {
+    setClicks(prev => prev + 1);
+    moveButton();
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h2 style={{ color: 'var(--error-color)', marginBottom: '8px' }}>滞納家賃の催促！</h2>
+        <p>第{room.id}号室の {room.tenant.name} さんに催促して家賃を回収しましょう。</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontWeight: 'bold' }}>
+          <span style={{ fontSize: '1.2rem' }}>残り: {timeLeft}秒</span>
+          <span style={{ fontSize: '1.2rem', color: 'var(--success-color)' }}>{clicks}回 成功</span>
+        </div>
+        
+        <div className="game-area">
+          <button 
+            className="fleeing-btn" 
+            style={{ top: btnPos.top, left: btnPos.left }}
+            onMouseEnter={moveButton} // 逃げる動作を強化
+            onClick={handleBtnClick}
+          >
+            家賃を払え！
+          </button>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          ※ボタンを押した回数に応じて回収額が増加します。<br />
+          （本来の回収予定額: {formatMoney(room.delinquentAmount)}）
+        </p>
+      </div>
+    </div>
+  );
+};
+
+function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRent, evictTenant, openMiniGame }) {
   const grade = room.gradeId ? ROOM_GRADES.find(g => g.id === room.gradeId) : null;
 
   const handleRentChange = (amount) => {
@@ -29,16 +109,16 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
 
   const gradeColor = grade ? grade.color : '#475569';
   const cardStyle = {
-    borderTop: `4px solid ${gradeColor}`,
-    boxShadow: grade ? `0 4px 12px ${gradeColor}20` : undefined
+    borderTop: `4px solid ${room.isDelinquent ? 'var(--error-color)' : gradeColor}`,
+    boxShadow: room.isDelinquent ? '0 4px 12px rgba(239, 68, 68, 0.3)' : (grade ? `0 4px 12px ${gradeColor}20` : undefined)
   };
 
   return (
     <div className="room-card" style={cardStyle}>
       <div className="room-header">
-        <div className="room-title" style={{ color: gradeColor }}>第{room.id}号室</div>
-        <div className={`status-badge ${room.gradeId === null ? '' : (room.isOccupied ? 'occupied' : 'vacant')}`}>
-          {room.gradeId === null ? '未設定' : (room.isOccupied ? '入居中' : '募集中')}
+        <div className="room-title" style={{ color: room.isDelinquent ? 'var(--error-color)' : gradeColor }}>第{room.id}号室</div>
+        <div className={`status-badge ${room.gradeId === null ? '' : (room.isDelinquent ? 'vacant' : (room.isOccupied ? 'occupied' : 'vacant'))}`}>
+          {room.gradeId === null ? '未設定' : (room.isDelinquent ? '滞納中' : (room.isOccupied ? '入居中' : '募集中'))}
         </div>
       </div>
       
@@ -52,7 +132,7 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
               <option value="" disabled>グレードを購入...</option>
               {ROOM_GRADES.map(g => (
                 <option key={g.id} value={g.id} disabled={funds < g.cost}>
-                  {g.name} ({g.cost.toLocaleString()}円) {funds < g.cost ? ' - 資金不足' : ''}
+                  {g.name} ({formatMoney(g.cost)}) {funds < g.cost ? ' - 資金不足' : ''}
                 </option>
               ))}
             </select>
@@ -102,14 +182,25 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
             {room.isOccupied && room.tenant && (
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
                 <div className="detail-row">
-                  <span style={{ fontWeight: 'bold' }}>👤 {room.tenant.name}</span>
+                  <span style={{ fontWeight: 'bold', color: room.isDelinquent ? 'var(--error-color)' : 'inherit' }}>
+                    👤 {room.tenant.name} {room.isDelinquent && '⚠️'}
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '8px' }}>
-                  <span>滞納率: {room.tenant.delinquencyRate}%</span>
-                  <span>破壊率: {room.tenant.destructionRate}x</span>
-                  <span>騒音度: {room.tenant.noiseLevel}</span>
-                  <span>マナー: {room.tenant.mannersLevel}</span>
-                </div>
+                
+                {room.isDelinquent && (
+                  <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid var(--error-color)', borderRadius: '6px' }}>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--error-color)', marginBottom: '8px' }}>
+                      現在家賃を滞納しています！収入が得られません。
+                    </p>
+                    <button 
+                      className="danger" 
+                      style={{ width: '100%', padding: '6px', fontSize: '0.875rem' }}
+                      onClick={() => openMiniGame(room)}
+                    >
+                      💢 家賃を催促する
+                    </button>
+                  </div>
+                )}
 
                 <div className="progress-bar-container">
                   <div className="progress-label">
@@ -123,7 +214,7 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
 
                 <button 
                   className="danger" 
-                  style={{ width: '100%', marginTop: '8px', padding: '6px', fontSize: '0.875rem' }} 
+                  style={{ width: '100%', marginTop: '8px', padding: '6px', fontSize: '0.875rem', backgroundColor: 'transparent', border: '1px solid var(--error-color)', color: 'var(--error-color)' }} 
                   onClick={() => evictTenant(room.id)}
                 >
                   🚪 強制退去させる
@@ -139,11 +230,11 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
                   {room.candidates.map(c => (
                     <div key={c.id} className="candidate-card">
                       <div className="candidate-name">{c.name}</div>
-                      <div className="candidate-stats">
-                        <span>滞納: {c.delinquencyRate}%</span>
-                        <span>破壊: {c.destructionRate}x</span>
-                        <span>騒音: {c.noiseLevel}</span>
-                        <span>ﾏﾅｰ: {c.mannersLevel}</span>
+                      <div className="candidate-stats-bars" style={{ margin: '8px 0' }}>
+                        <StatBar label="滞納リスク" value={c.delinquencyRate} max={100} colorClass={c.delinquencyRate > 20 ? 'danger' : 'warning'} displayValue={`${c.delinquencyRate}%`} />
+                        <StatBar label="破壊リスク" value={c.destructionRate} max={2.5} colorClass={c.destructionRate > 1.5 ? 'danger' : 'warning'} displayValue={`${c.destructionRate}x`} />
+                        <StatBar label="騒音リスク" value={c.noiseLevel} max={100} colorClass={c.noiseLevel > 60 ? 'danger' : 'warning'} displayValue={c.noiseLevel} />
+                        <StatBar label="マナー良さ" value={c.mannersLevel} max={100} colorClass={c.mannersLevel > 60 ? 'success' : 'info'} displayValue={c.mannersLevel} />
                       </div>
                       <button className="candidate-btn" onClick={() => selectTenant(room.id, c)}>
                         この人を入居させる
@@ -163,8 +254,15 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
 function App() {
   const { 
     funds, debt, floors, rooms, events, 
-    buildFloor, upgradeRoom, selectTenant, repairRoom, changeRent, repayDebt, evictTenant 
+    buildFloor, upgradeRoom, selectTenant, repairRoom, changeRent, repayDebt, evictTenant, resolveDelinquency 
   } = useGameEngine();
+
+  const [miniGameRoom, setMiniGameRoom] = useState(null);
+
+  const handleMiniGameComplete = (roomId, recoveredAmount) => {
+    resolveDelinquency(roomId, recoveredAmount);
+    setMiniGameRoom(null);
+  };
 
   // 階層ごとに部屋をグループ化
   const floorsMap = {};
@@ -174,20 +272,28 @@ function App() {
 
   return (
     <div className="app-container">
+      {miniGameRoom && (
+        <MiniGameModal 
+          room={miniGameRoom} 
+          onComplete={handleMiniGameComplete} 
+          onClose={() => setMiniGameRoom(null)} 
+        />
+      )}
+
       <div className="dashboard">
         <div className="stat-box">
           <span className="stat-label">現在の資金</span>
-          <span className="stat-value funds">{funds.toLocaleString()} 円</span>
+          <span className="stat-value funds">{formatMoney(funds)}</span>
         </div>
         
         <div className="stat-box">
           <span className="stat-label">借金残高</span>
-          <span className="stat-value debt">{debt.toLocaleString()} 円</span>
+          <span className="stat-value debt">{formatMoney(debt)}</span>
         </div>
 
         <div className="actions">
           <button onClick={() => buildFloor()}>
-            🏢 {floors + 1}階を増築 ({(FLOOR_COST_BASE * floors).toLocaleString()}円)
+            🏢 {floors + 1}階を増築 ({formatMoney(FLOOR_COST_BASE * floors)})
           </button>
           <button className="danger" onClick={() => repayDebt(10000000)}>💰 1000万円返済</button>
           <button className="danger" onClick={() => repayDebt(100000000)}>💰 1億円返済</button>
@@ -213,6 +319,7 @@ function App() {
                       repairRoom={repairRoom}
                       changeRent={changeRent} 
                       evictTenant={evictTenant}
+                      openMiniGame={setMiniGameRoom}
                     />
                   ))}
                 </div>

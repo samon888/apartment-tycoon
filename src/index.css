@@ -98,7 +98,7 @@ button:disabled { background-color: #475569; cursor: not-allowed; transform: non
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-.apartment-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.apartment-view { display: flex; flex-direction: row; overflow-x: auto; padding-bottom: 8px; gap: 16px; }
 
 /* Room Card */
 .room-card {
@@ -107,6 +107,8 @@ button:disabled { background-color: #475569; cursor: not-allowed; transform: non
   padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: transform 0.2s;
+  min-width: 320px;
+  flex-shrink: 0;
 }
 
 .room-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
@@ -156,3 +158,40 @@ button:disabled { background-color: #475569; cursor: not-allowed; transform: non
 .log-item.warning { background-color: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning-color); }
 .log-item.error { background-color: rgba(239, 68, 68, 0.1); border-left: 3px solid var(--error-color); }
 .log-time { font-size: 0.7rem; color: var(--text-secondary); display: block; margin-top: 4px; }
+
+/* Modal / Mini Game */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0,0,0,0.8);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 1000;
+}
+.modal-content {
+  background-color: var(--bg-card);
+  border-radius: 16px; padding: 24px;
+  width: 400px; max-width: 90vw;
+  text-align: center;
+  border: 1px solid var(--accent-color);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+.game-area {
+  position: relative;
+  width: 100%; height: 250px;
+  background-color: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.fleeing-btn {
+  position: absolute;
+  padding: 8px 16px;
+  background-color: var(--error-color);
+  color: white; border: none; border-radius: 8px;
+  font-weight: bold; cursor: pointer;
+  transition: top 0.1s ease-out, left 0.1s ease-out;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.fleeing-btn:hover {
+  background-color: #dc2626;
+}

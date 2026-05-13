@@ -26,7 +26,9 @@ const createRoomsForFloor = (floorNumber) => {
     isOccupied: false,
     satisfaction: 100,
     tenant: null,
-    candidates: []
+    candidates: [],
+    isDelinquent: false,
+    delinquentAmount: 0
   }));
 };
 
@@ -66,13 +68,19 @@ export const useGameEngine = () => {
             // 入居中の場合
             const tenant = updatedRoom.tenant;
             
-            // 1. 家賃の回収（滞納率の判定）
-            const isDelinquent = Math.random() < (tenant.delinquencyRate / 100);
-            if (!isDelinquent) {
-              newFundsDelta += updatedRoom.rent;
-            } else if (Math.random() < 0.05) {
-              // 滞納イベントをたまにログに出す
-              newEvents.push({ message: `第${updatedRoom.id}号室の${tenant.name}さんが家賃を滞納しています…`, type: 'warning' });
+            // 1. 家賃の回収と滞納の判定
+            if (updatedRoom.isDelinquent) {
+              // 滞納中は家賃は支払われない
+            } else {
+              // 滞納イベントの判定（おおよそ滞納率50%で3分(180秒)に1度）
+              const isDelinquentEvent = Math.random() < ((tenant.delinquencyRate / 50) / 180);
+              if (isDelinquentEvent) {
+                updatedRoom.isDelinquent = true;
+                updatedRoom.delinquentAmount = updatedRoom.rent; // 滞納額として1ヶ月分をセット
+                newEvents.push({ message: `第${updatedRoom.id}号室の${tenant.name}さんが家賃を滞納しました！催促してください。`, type: 'warning' });
+              } else {
+                newFundsDelta += updatedRoom.rent;
+              }
             }
 
             // 2. 耐久値の減少
@@ -82,6 +90,7 @@ export const useGameEngine = () => {
               updatedRoom.isOccupied = false;
               updatedRoom.tenant = null;
               updatedRoom.candidates = [];
+              updatedRoom.isDelinquent = false;
               newEvents.push({ message: `第${updatedRoom.id}号室がボロボロになり、住人が退去しました！早急に改修してください。`, type: 'error' });
             }
 
@@ -106,6 +115,7 @@ export const useGameEngine = () => {
                 updatedRoom.isOccupied = false;
                 updatedRoom.tenant = null;
                 updatedRoom.candidates = [];
+                updatedRoom.isDelinquent = false;
                 newEvents.push({ message: `第${updatedRoom.id}号室の${tenant.name}さんが不満を爆発させて退去しました…`, type: 'error' });
               }
             }
@@ -279,6 +289,22 @@ export const useGameEngine = () => {
     }
   };
 
+  // アクション: 滞納回収（ミニゲーム結果）
+  const resolveDelinquency = (roomId, recoveredAmount) => {
+    setRooms(prev => prev.map(room => {
+      if (room.id === roomId && room.isDelinquent) {
+        if (recoveredAmount > 0) {
+          setFunds(f => f + recoveredAmount);
+          addEvent(`第${roomId}号室の滞納家賃を ${recoveredAmount.toLocaleString()} 円回収しました！`, 'success');
+        } else {
+          addEvent(`第${roomId}号室の家賃回収に失敗しました…。`, 'error');
+        }
+        return { ...room, isDelinquent: false, delinquentAmount: 0 };
+      }
+      return room;
+    }));
+  };
+
   return {
     funds,
     debt,
@@ -291,6 +317,7 @@ export const useGameEngine = () => {
     repairRoom,
     changeRent,
     repayDebt,
-    evictTenant
+    evictTenant,
+    resolveDelinquency
   };
 };
