@@ -176,14 +176,14 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
             <div className="detail-row" style={{ marginTop: '12px' }}>
               <span style={{ fontSize: '0.875rem' }}>家賃 (月額)</span>
               <div className="rent-controls">
-                <button className="rent-btn" onClick={() => handleRentChange(-1000)}>-1k</button>
+                <button className="rent-btn" onClick={() => handleRentChange(-100)}>-100</button>
                 <input 
                   type="number" 
                   className="rent-input" 
                   value={room.rent} 
                   onChange={(e) => changeRent(room.id, Number(e.target.value))}
                 />
-                <button className="rent-btn" onClick={() => handleRentChange(1000)}>+1k</button>
+                <button className="rent-btn" onClick={() => handleRentChange(100)}>+100</button>
               </div>
             </div>
 
@@ -231,12 +231,26 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
               </div>
             )}
 
-            {/* 空室の場合（オーディション） */}
-            {!room.isOccupied && room.candidates && room.candidates.length > 0 && (
+            {/* 空室の場合（アップグレード ＆ オーディション） */}
+            {!room.isOccupied && (
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>入居者オーディション</span>
-                <div className="candidates-list">
-                  {room.candidates.map(c => (
+                <div style={{ marginBottom: '16px' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>部屋の改装（アップグレード）</span>
+                  <select className="upgrade-select" value="" onChange={handleUpgrade}>
+                    <option value="" disabled>グレードを変更...</option>
+                    {ROOM_GRADES.map(g => (
+                      <option key={g.id} value={g.id} disabled={funds < g.cost || g.id === room.gradeId}>
+                        {g.name} ({formatMoney(g.cost)}) {funds < g.cost ? ' - 資金不足' : (g.id === room.gradeId ? ' - 現在のグレード' : '')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {room.candidates && room.candidates.length > 0 && (
+                  <div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 'bold' }}>入居者オーディション</span>
+                    <div className="candidates-list">
+                      {room.candidates.map(c => (
                     <div key={c.id} className="candidate-card">
                       <div className="candidate-name">{c.name}</div>
                       <div className="candidate-stats-bars" style={{ margin: '8px 0' }}>
@@ -252,6 +266,8 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
                   ))}
                 </div>
               </div>
+            )}
+            </div>
             )}
           </>
         )}
