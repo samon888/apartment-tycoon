@@ -79,7 +79,7 @@ export const useGameEngine = () => {
                 updatedRoom.delinquentAmount = updatedRoom.rent; // 滞納額として1ヶ月分をセット
                 newEvents.push({ message: `第${updatedRoom.id}号室の${tenant.name}さんが家賃を滞納しました！催促してください。`, type: 'warning' });
               } else {
-                newFundsDelta += updatedRoom.rent;
+                newFundsDelta += Math.floor(updatedRoom.rent / 30);
               }
             }
 
@@ -308,7 +308,7 @@ export const useGameEngine = () => {
   // 現在の毎秒の収入を計算
   const currentIncome = rooms.reduce((acc, room) => {
     if (room.isOccupied && !room.isDelinquent) {
-      return acc + room.rent;
+      return acc + Math.floor(room.rent / 30);
     }
     return acc;
   }, 0);
