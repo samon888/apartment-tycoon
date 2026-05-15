@@ -92,6 +92,55 @@ const MiniGameModal = ({ room, onComplete, onClose }) => {
   );
 };
 
+const RentInput = ({ rent, grade, onChange }) => {
+  const minLength = grade.baseRent.toString().length;
+  // minLength以上の桁数になるようにゼロ埋め（ベース家賃の桁数を下回らないように表示）
+  const rentStr = rent.toString().padStart(minLength, '0');
+  const digits = rentStr.split('');
+  
+  const handleDigitChange = (index, delta) => {
+    // 操作する桁の重みを計算
+    const placeValue = Math.pow(10, rentStr.length - 1 - index);
+    const newRent = Math.max(0, rent + (delta * placeValue));
+    onChange(newRent);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontFamily: 'monospace', fontSize: '1.2rem' }}>
+      {digits.map((digit, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {i < 3 ? (
+            <button 
+              onClick={() => handleDigitChange(i, 1)} 
+              style={{ padding: '0', background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '1rem', boxShadow: 'none', height: '20px', lineHeight: '20px' }}
+            >
+              ▲
+            </button>
+          ) : (
+            <div style={{ height: '20px' }}></div>
+          )}
+          
+          <div style={{ fontWeight: 'bold', padding: '2px 4px', backgroundColor: '#f1f5f9', borderRadius: '4px', minWidth: '16px', textAlign: 'center', margin: '2px 0', border: '1px solid #e2e8f0', color: 'var(--text-primary)' }}>
+            {digit}
+          </div>
+          
+          {i < 3 ? (
+            <button 
+              onClick={() => handleDigitChange(i, -1)} 
+              style={{ padding: '0', background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '1rem', boxShadow: 'none', height: '20px', lineHeight: '20px' }}
+            >
+              ▼
+            </button>
+          ) : (
+            <div style={{ height: '20px' }}></div>
+          )}
+        </div>
+      ))}
+      <span style={{ marginLeft: '4px', fontSize: '0.9rem', alignSelf: 'center', fontWeight: 'bold', color: 'var(--text-primary)' }}>円</span>
+    </div>
+  );
+};
+
 function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRent, evictTenant, openMiniGame }) {
   const grade = room.gradeId ? ROOM_GRADES.find(g => g.id === room.gradeId) : null;
 
@@ -173,18 +222,9 @@ function RoomCard({ room, funds, upgradeRoom, selectTenant, repairRoom, changeRe
             </div>
             
             {/* 家賃コントロール */}
-            <div className="detail-row" style={{ marginTop: '12px' }}>
+            <div className="detail-row" style={{ marginTop: '12px', alignItems: 'center' }}>
               <span style={{ fontSize: '0.875rem' }}>家賃 (月額)</span>
-              <div className="rent-controls">
-                <button className="rent-btn" onClick={() => handleRentChange(-100)}>-100</button>
-                <input 
-                  type="number" 
-                  className="rent-input" 
-                  value={room.rent} 
-                  onChange={(e) => changeRent(room.id, Number(e.target.value))}
-                />
-                <button className="rent-btn" onClick={() => handleRentChange(100)}>+100</button>
-              </div>
+              <RentInput rent={room.rent} grade={grade} onChange={(newRent) => changeRent(room.id, newRent)} />
             </div>
 
             {/* 入居者ありの場合 */}
